@@ -1,0 +1,538 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeBite Food Scan</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom style for the fixed camera view */
+    #camera-view {
+        /* Ensure the camera view is full screen and on top */
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 50;
+        background: black;
+        display: none; /* Hidden by default, shown by JS */
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    /* Custom styling for the Actionable Fixes box */
+    .action-box {
+        border-width: 3px; /* Stronger border for visibility */
+        border-style: solid;
+        animation: pulse-border 2s infinite; /* Attention-grabbing animation */
+    }
+    @keyframes pulse-border {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.01); opacity: 0.95; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    /* Custom styling for the new Health Advice block */
+    .health-advice-box {
+        background-color: #0A1128; /* Deep Navy Blue */
+        background-image: radial-gradient(#152044 1px, transparent 1px); /* Subtle "ocean dots" */
+        background-size: 8px 8px; /* Small dots */
+        border-color: #007bff; /* Bright blue border for accent */
+        border-width: 2px;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen p-4">
+
+  <h1 class="text-3xl font-bold text-center mb-6 tracking-wide">
+    SafeBite Food Scanner
+  </h1>
+
+  <datalist id="localDietSuggestions">
+    <option value="Omnivore (Kawaida)"></option>
+    <option value="Traditional Staples (Ugali, Matoke, Arrowroot)"></option>
+    <option value="Plant-Based (Githeri, Minji, Greens)"></option>
+    <option value="Low-Carb (Ugali-Free)"></option>
+    <option value="Fish & Seafood Focus (Omena, Tilapia)"></option>
+    <option value="Diabetic Friendly (Sukari Control)"></option>
+    <option value="Halal"></option>
+    <option value="Vegan (No Meat, No Dairy)"></option>
+  </datalist>
+
+  <datalist id="localAllergySuggestions">
+    <option value="Peanuts (Njugu)"></option>
+    <option value="Cow Milk (Maziwa ya Ng'ombe)"></option>
+    <option value="Wheat (Ngano) / Gluten"></option>
+    <option value="Eggs (Mayai)"></option>
+    <option value="Fish (Samaki)"></option>
+    <option value="Shellfish / Prawns (Kamba)"></option>
+    <option value="Chili/Spice (Pilipili)"></option>
+    <option value="Maize / Corn (Ugali, Githeri)"></option>
+    <option value="Beans (Maharagwe) / Legumes"></option>
+  </datalist>
+  <div id="profileCard" class="bg-gray-800 p-6 rounded-2xl shadow-xl max-w-lg mx-auto mb-6 border border-gray-700">
+    <h2 class="text-xl font-bold mb-4 text-blue-400">Your Health Profile</h2>
+    <label class="block mb-3"><span class="text-gray-300">Name</span><input id="name" class="mt-1 w-full p-3 rounded-xl bg-gray-700 focus:ring-2 focus:ring-blue-400" /></label>
+    
+    <label class="block mb-3"><span class="text-gray-300">Allergies (Select or Write)</span>
+        <input 
+            id="allergies" 
+            class="mt-1 w-full p-3 rounded-xl bg-gray-700 focus:ring-2 focus:ring-blue-400" 
+            list="localAllergySuggestions"
+            placeholder="Select or Write Allergies (e.g., Peanuts (Njugu), Milk)"
+            autocomplete="off"
+        />
+    </label>
+
+    <label class="block mb-3"><span class="text-gray-300">Preferred Foods</span><input id="preferredFoods" class="mt-1 w-full p-3 rounded-xl bg-gray-700 focus:ring-2 focus:ring-blue-400" /></label>
+    
+    <label class="block mb-3"><span class="text-gray-300">Diet Type (Select or Write)</span>
+        <input 
+            id="dietType" 
+            class="mt-1 w-full p-3 rounded-xl bg-gray-700 focus:ring-2 focus:ring-blue-400" 
+            list="localDietSuggestions"
+            placeholder="Select or Write Your Diet (e.g., Low-Carb, Halal)"
+            autocomplete="off"
+        />
+    </label>
+    
+    <label class="block mb-6"><span class="text-gray-300">Health Conditions</span><input id="healthConditions" class="mt-1 w-full p-3 rounded-xl bg-gray-700 focus:ring-2 focus:ring-blue-400" /></label>
+
+    <button id="saveProfileBtn"
+      class="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-xl text-white font-semibold transition">
+      Save Profile
+    </button>
+    <p class="text-sm text-gray-400 mt-3 text-center">
+      We’ll use this info to personalize your food scan. Filled once only.
+    </p>
+  </div>
+
+  <div id="uploadSection" class="hidden bg-gray-800 p-6 rounded-2xl shadow-xl max-w-lg mx-auto border border-gray-700">
+    
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-green-400">Scan Your Meal</h2>
+        <a id="scanDrinkBtn" 
+           href="drink.html" 
+           class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 px-3 rounded-xl transition">
+           Scan a Drink 🥤
+        </a>
+    </div>
+    <input type="file" id="imageInput" accept="image/*" class="hidden" />
+    <input type="hidden" id="capturedImage" />
+    
+    <div class="flex space-x-4 mb-4">
+        <button id="cameraBtn"
+            class="flex-1 bg-green-600 hover:bg-green-700 p-3 rounded-xl font-semibold transition text-white flex items-center justify-center space-x-2">
+            <span>📷 Capture Live Photo</span>
+        </button>
+        <label for="imageInput"
+            class="flex-1 bg-gray-600 hover:bg-gray-700 p-3 rounded-xl font-semibold transition text-white flex items-center justify-center space-x-2 cursor-pointer">
+            <span>📁 Upload from Gallery</span>
+        </label>
+    </div>
+
+    <div id="previewArea" class="w-full h-48 bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden mb-4">
+        <span id="previewText" class="text-gray-400">Image Preview / Live Stream will appear here.</span>
+        <img id="imagePreview" class="hidden w-full h-full object-cover" alt="Meal Preview" />
+    </div>
+
+    <div id="scanStatus" class="text-center text-sm font-semibold mb-2 text-yellow-400 hidden">
+        Analyzing image... please wait (up to 10 seconds).
+    </div>
+    
+    <button id="scanBtn"
+        class="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl text-white font-extrabold text-lg transition disabled:bg-gray-500"
+        disabled>
+        ANALYZE MEAL
+    </button>
+    
+  </div>
+
+  <div id="resultsCard"
+    class="hidden bg-gray-800 p-0 rounded-2xl shadow-xl max-w-lg mx-auto mt-6 border border-gray-700 overflow-hidden">
+    </div>
+
+  <div id="camera-view">
+    <video id="video-stream" autoplay playsinline class="w-full h-full object-cover"></video>
+    <canvas id="canvas-capture" class="hidden"></canvas>
+    
+    <button id="takePhotoBtn"
+        class="absolute bottom-10 p-5 bg-white rounded-full shadow-2xl transition hover:scale-110">
+        <div class="w-6 h-6 border-2 border-gray-600 rounded-full"></div>
+    </button>
+    <button id="closeCameraBtn"
+        class="absolute top-4 left-4 p-2 bg-black/50 text-white rounded-full transition hover:bg-black/70">
+        &times;
+    </button>
+  </div>
+
+  <script>
+    const BACKEND_URL = "https://safebite-backend-471218709027.us-central1.run.app";
+
+    const saveProfileBtn = document.getElementById("saveProfileBtn");
+    const uploadSection = document.getElementById("uploadSection");
+    const resultsCard = document.getElementById("resultsCard");
+    
+    // Scan Elements
+    const imageInput = document.getElementById("imageInput");
+    const imagePreview = document.getElementById("imagePreview");
+    const previewText = document.getElementById("previewText");
+    const scanBtn = document.getElementById("scanBtn");
+    const scanStatus = document.getElementById("scanStatus");
+    
+    // Camera Elements
+    const cameraBtn = document.getElementById("cameraBtn");
+    const cameraView = document.getElementById("camera-view");
+    const videoStream = document.getElementById("video-stream");
+    const takePhotoBtn = document.getElementById("takePhotoBtn");
+    const closeCameraBtn = document.getElementById("closeCameraBtn");
+    const canvasCapture = document.getElementById("canvas-capture");
+    
+    let profileId = null;
+    let currentImageFile = null;
+    let stream = null; // To hold the camera stream
+
+    // --- Utility Functions ---
+
+    // ⭐ NEW FEATURE: Function to reset the scan form and show the upload area
+    function resetScanForm() {
+        resultsCard.classList.add("hidden");
+        uploadSection.classList.remove("hidden");
+        
+        // Clear image and status
+        setScanFile(null); // Resets currentImageFile and preview
+        imageInput.value = ''; // Clear file input history
+        scanStatus.classList.add("hidden");
+        scanBtn.disabled = true; // Disable until a new image is selected
+    }
+
+    // Function to set the file for scanning
+    const setScanFile = (file) => {
+        currentImageFile = file;
+        scanBtn.disabled = !file;
+        
+        if (file) {
+            const url = URL.createObjectURL(file);
+            imagePreview.src = url;
+            imagePreview.classList.remove("hidden");
+            previewText.classList.add("hidden");
+        } else {
+            imagePreview.classList.add("hidden");
+            previewText.classList.remove("hidden");
+        }
+    }
+
+    // ⭐ NEW FEATURE: Function to fetch profile data (or set placeholders for display)
+    async function fetchProfileData(id) {
+        // Since we are avoiding database hits for testing, we'll set a placeholder
+        // for the Health Condition input field used in the results card header.
+        document.getElementById("healthConditions").value = "Testing Profile";
+        console.log("Reusing Profile ID:", id);
+    }
+    
+    // =========================================================================
+    // THE CRITICAL UPDATE: RENDER RESULTS FUNCTION (Frontend Fixed)
+    // =========================================================================
+    function renderResults(result) {
+      // Access the nested aiResult object to get the actual data from the backend
+      const finalAiResult = result.aiResult?.aiResult || result.aiResult || {};
+      
+      const riskLevel = finalAiResult.risk_level ? finalAiResult.risk_level.toUpperCase() : 'UNKNOWN';
+      const riskScore = finalAiResult.risk_score || 'N/A';
+      
+      // 1. DYNAMIC STYLING based on the new 3-tiered risk system
+      let statusBg, statusIcon, statusText, actionBoxBorder, actionBoxText;
+
+      if (riskLevel === 'CRITICAL') {
+        statusBg = 'bg-red-600';
+        statusIcon = '🚫';
+        statusText = 'CRITICAL RISK (STOP!)';
+        actionBoxBorder = 'border-red-400';
+        actionBoxText = 'text-red-400';
+      } else if (riskLevel === 'MODERATE') {
+        statusBg = 'bg-yellow-600';
+        statusIcon = '🟡';
+        statusText = 'MODERATE RISK (Adjust & Balance)';
+        actionBoxBorder = 'border-yellow-400';
+        actionBoxText = 'text-yellow-400';
+      } else { // SAFE or UNKNOWN
+        statusBg = 'bg-green-600';
+        statusIcon = '✅';
+        statusText = 'SAFE (Enjoy Your Meal!)';
+        actionBoxBorder = 'border-green-400';
+        actionBoxText = 'text-green-400';
+      }
+      
+      // Helper to render localized ingredients (now includes the risk tag)
+      const ingredientsList = (list) => 
+        list.map(item => `<li class="flex items-center space-x-2"><span class="text-blue-300">🌿</span><span>${item}</span></li>`).join('');
+
+      // Helper to render localized swaps
+      const swapsList = (list) => 
+        list.map((item, index) => 
+            `<li class="flex items-start text-gray-300"><span class="font-bold text-green-400 mr-2">${index + 1}.</span><span>${item}</span></li>`
+        ).join('');
+        
+      // Helper to render ACTIONABLE FIXES (The main new feature for MODERATE/CRITICAL)
+      const fixesList = (list) => 
+        list.map(item => `<li class="text-lg font-semibold flex items-center space-x-2"><span class="text-xl">👉</span><span>${item}</span></li>`).join('');
+        
+      const actionableFixes = finalAiResult.localized_actionable_fixes || [];
+      const showFixes = riskLevel === 'MODERATE' || riskLevel === 'CRITICAL';
+      
+      const fixesHtml = showFixes && actionableFixes.length > 0 ? `
+          <div class="bg-gray-700 p-5 rounded-xl shadow-lg action-box ${actionBoxBorder}">
+              <h3 class="text-xl font-extrabold mb-3 flex items-center ${actionBoxText}">
+                  🚨 IMMEDIATE ACTION (Hatua za Haraka)
+              </h3>
+              <ul class="space-y-3 text-gray-200 list-none">
+                  ${fixesList(actionableFixes)}
+              </ul>
+          </div>
+      ` : '';
+
+      // NEW: Health Consumption Advice block, replacing the image
+      const healthAdviceHtml = (finalAiResult.health_consumption_advice && finalAiResult.health_consumption_advice.length > 0) ? `
+          <div class="p-5 rounded-xl shadow-lg health-advice-box text-white mb-6">
+              <h3 class="text-xl font-bold mb-4 flex items-center text-blue-300">
+                  🩺 Health Consumption Advice (Ushauri wa Afya)
+              </h3>
+              <ul class="space-y-3 list-none">
+                  ${finalAiResult.health_consumption_advice
+                      .map(item => `<li class="flex items-start space-x-2"><span class="text-lg text-blue-400 font-bold">•</span><span>${item}</span></li>`)
+                      .join('')}
+              </ul>
+          </div>
+      ` : '';
+
+
+      resultsCard.innerHTML = `
+        <div class="text-white p-6 rounded-t-2xl text-center font-bold text-2xl ${statusBg}">
+          ${statusIcon} ${statusText}
+          <div class="text-sm font-normal opacity-90">Friendly & Conversational</div>
+        </div>
+        
+        <div class="p-6 space-y-6">
+            
+            ${fixesHtml}
+
+            <div class="bg-gray-700 p-5 rounded-xl shadow-lg">
+                <h3 class="text-xl font-semibold text-white mb-3 flex items-center">
+                    🔍 What We Found (Vyakula Tulivyoona)
+                </h3>
+                <div class="grid grid-cols-2 gap-4 text-gray-300">
+                    <div>
+                        <h4 class="font-medium text-lg mb-2 text-blue-300">Visible (Vinavyoonekana):</h4>
+                        <ul class="space-y-1">${ingredientsList(finalAiResult.localized_visible_ingredients || [])}</ul>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-lg mb-2 text-orange-300">Hidden (Probable/Siri):</h4>
+                        <ul class="space-y-1">${ingredientsList(finalAiResult.hidden_ingredients || [])}</ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700 p-5 rounded-xl shadow-lg">
+                <h3 class="text-xl font-semibold text-white mb-4 flex items-center">
+                    🛡️ Your Personalized Analysis (Uchambuzi Binafsi)
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 rounded-lg bg-gray-800 border ${riskLevel === 'CRITICAL' ? 'border-red-400' : 'border-gray-600'}">
+                        <h4 class="font-bold mb-1 ${riskLevel === 'CRITICAL' ? 'text-red-400' : 'text-blue-400'}">Allergy Check (Allerji)</h4>
+                        <p class="text-sm text-gray-300">${finalAiResult.allergy_risk_summary || 'N/A'}</p>
+                    </div>
+
+                    <div class="p-4 rounded-lg bg-gray-800 border border-yellow-400">
+                        <h4 class="font-bold mb-1 text-yellow-400">Health (Risk Score: ${riskScore}/10)</h4>
+                        <p class="text-sm text-gray-300">${finalAiResult.health_risk_summary || 'N/A'}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700 p-5 rounded-xl shadow-lg">
+                <h3 class="text-xl font-semibold text-white mb-4 flex items-center">
+                    💬 Our Expert's Take (Ushauri wa Mtaalam)
+                </h3>
+                <div class="p-4 bg-gray-800 border-l-4 border-blue-400 italic text-gray-300 rounded-md mb-6">
+                    ${finalAiResult.expert_take_paragraph || 'N/A'}
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mt-6 mb-3 flex items-center">
+                    🥗 Safe & Local Swaps (Mbadala Salama)
+                </h3>
+                <ol class="space-y-2 text-gray-300 list-none">
+                    ${swapsList(finalAiResult.safe_swaps || [])}
+                </ol>
+            </div>
+            
+            ${healthAdviceHtml} <button onclick="resetScanForm()" 
+                    class="w-full mt-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-xl text-white font-semibold transition">
+                Scan Another Meal
+            </button>
+        </div>
+      `;
+      resultsCard.classList.remove("hidden");
+    }
+    // =========================================================================
+    // END RENDER RESULTS FUNCTION
+    // =========================================================================
+    
+    // --- Event Listeners and Core Logic ---
+
+    // Save Profile
+    saveProfileBtn.addEventListener("click", async () => {
+      // **CRITICAL:** The .value property retrieves the content from the input box, 
+      // which is either a selected option or a user-typed string. This maintains the backend logic.
+      const profileData = {
+        name: document.getElementById("name").value,
+        allergicFoods: document.getElementById("allergies").value
+          .split(",").map(s => s.trim()).filter(Boolean),
+        preferredFoods: document.getElementById("preferredFoods").value
+          .split(",").map(s => s.trim()).filter(Boolean),
+        dietType: document.getElementById("dietType").value,
+        healthConditions: document.getElementById("healthConditions").value
+          .split(",").map(s => s.trim()).filter(Boolean),
+      };
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/profile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(profileData),
+        });
+
+        const data = await res.json();
+        profileId = data.profileId;
+        
+        // ⭐ NEW FEATURE: Save the profileId to local storage for persistence
+        localStorage.setItem('safebiteProfileId', profileId); 
+
+        document.getElementById("profileCard").classList.add("hidden");
+        uploadSection.classList.remove("hidden");
+        // Using custom modal/message box instead of alert()
+        console.log("Profile saved successfully! Ready to scan.");
+      } catch (err) {
+        // Using custom modal/message box instead of alert()
+        console.error("Failed to save profile. Try again.", err);
+      }
+    });
+
+    // --- Image/Camera Handlers ---
+
+    // Handle File Upload Change
+    imageInput.addEventListener("change", () => {
+        if (imageInput.files.length > 0) {
+            setScanFile(imageInput.files[0]);
+        }
+    });
+
+    // Handle Scan Button Click
+    scanBtn.addEventListener("click", async () => {
+      if (!currentImageFile || !profileId) {
+        // Using custom modal/message box instead of alert()
+        console.warn("Please upload/capture an image and ensure your profile is saved.");
+        return;
+      }
+      
+      resultsCard.classList.add("hidden");
+      scanBtn.disabled = true;
+      scanStatus.classList.remove("hidden");
+      
+      const formData = new FormData();
+      formData.append("image", currentImageFile);
+      formData.append("userId", profileId);
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/scan`, {
+          method: "POST",
+          body: formData,
+        });
+
+        const result = await res.json();
+
+        // --- SUCCESS/FAILURE HANDLING ---
+        if (result.error || result.aiResult.error) {
+          resultsCard.innerHTML = `<div class="p-6"><p class="text-red-400 font-bold">Error analyzing image:</p><pre class="text-gray-300">${result.message || JSON.stringify(result)}</pre></div>`;
+          resultsCard.classList.remove("hidden");
+        } else {
+          // RENDER THE NEW DESIGN!
+          renderResults(result);
+        }
+
+      } catch (err) {
+        resultsCard.innerHTML = `<div class="p-6"><p class="text-red-400 font-bold">Network or unexpected error:</p><pre class="text-gray-300">${err.message}</pre></div>`;
+        resultsCard.classList.remove("hidden");
+        console.error("Fetch error:", err);
+      } finally {
+        scanBtn.disabled = false;
+        scanStatus.classList.add("hidden");
+      }
+    });
+    
+    // --- Camera Logic ---
+
+    // Open Camera
+    cameraBtn.addEventListener("click", async () => {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            videoStream.srcObject = stream;
+            cameraView.classList.remove("hidden");
+        } catch (err) {
+            // Using custom modal/message box instead of alert()
+            console.error("Camera access error:", err);
+            console.warn("Could not access camera. Please ensure permissions are granted or use the upload button.");
+        }
+    });
+
+    // Close Camera
+    closeCameraBtn.addEventListener("click", () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        cameraView.classList.add("hidden");
+    });
+
+    // Take Photo
+    takePhotoBtn.addEventListener("click", () => {
+        const context = canvasCapture.getContext('2d');
+        
+        // Match canvas dimensions to video feed
+        canvasCapture.width = videoStream.videoWidth;
+        canvasCapture.height = videoStream.videoHeight;
+        
+        // Draw the current video frame onto the canvas
+        context.drawImage(videoStream, 0, 0, canvasCapture.width, canvasCapture.height);
+        
+        // Convert canvas image to a Blob (file)
+        canvasCapture.toBlob((blob) => {
+            if (blob) {
+                const capturedFile = new File([blob], "captured_meal.jpg", { type: "image/jpeg" });
+                setScanFile(capturedFile);
+                closeCameraBtn.click(); // Close the camera view
+            }
+        }, 'image/jpeg');
+    });
+
+    // ⭐ NEW FEATURE: Initialize App Logic - checks for saved ID and bypasses profile form
+    (function initializeApp() {
+        const savedId = localStorage.getItem('safebiteProfileId');
+
+        if (savedId) {
+            profileId = savedId;
+            
+            // Hide the Profile Card
+            document.getElementById("profileCard").classList.add("hidden");
+            
+            // Show the Upload/Scan Section
+            document.getElementById("uploadSection").classList.remove("hidden");
+            
+            // Fetch profile data (or set display placeholders)
+            fetchProfileData(profileId); 
+
+        }
+    })();
+  </script>
+
+</body>
+</html>

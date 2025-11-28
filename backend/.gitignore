@@ -1,0 +1,14 @@
+# Node
+node_modules/
+uploads/
+
+# Secrets
+serviceAccountKey.json
+vertex-key.json
+routes/serviceAccountKey.json
+safebite-secrets/
+.env
+
+# OS / misc
+.DS_Store
+safebite-secrets/

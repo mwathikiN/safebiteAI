@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scan Drink • SafeBite Africa</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* --- Futuristic Scan Card --- */
+    .scan-container {
+      min-height: 100vh;
+      background: linear-gradient(to bottom, #081828, #0a2438);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      color: #e8f9ff;
+    }
+
+    .scan-card {
+      width: 90%;
+      max-width: 420px;
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 255, 150, 0.2);
+      border-radius: 20px;
+      padding: 20px;
+      margin-top: 40px;
+      text-align: center;
+      box-shadow: 0 0 20px rgba(0, 255, 120, 0.12);
+    }
+
+    .scan-btn {
+      background: #00c77b;
+      color: white;
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      margin-top: 15px;
+      cursor: pointer;
+      border: none;
+      font-size: 1rem;
+      font-weight: bold;
+      transition: 0.2s ease;
+    }
+
+    .scan-btn:hover {
+      background: #00e08d;
+      transform: scale(1.02);
+    }
+    .scan-btn:disabled {
+        background: #008f58;
+        cursor: not-allowed;
+    }
+
+    .upload-preview {
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+      margin-top: 15px;
+      display: none;
+      box-shadow: 0 0 12px rgba(0, 255, 180, 0.3);
+      object-fit: cover;
+    }
+
+    .loading-box {
+      width: 90%;
+      max-width: 420px;
+      background: rgba(0, 255, 140, 0.1);
+      border-left: 4px solid #00ff9d;
+      padding: 15px;
+      border-radius: 14px;
+      margin-top: 20px;
+      display: none;
+      text-align: center;
+      color: #9effe1;
+    }
+    
+    /* Result Card Styles */
+    #resultsCard {
+        width: 90%;
+        max-width: 420px;
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 255, 150, 0.2);
+        border-radius: 20px;
+        margin-top: 20px;
+        box-shadow: 0 0 20px rgba(0, 255, 120, 0.12);
+        text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <div class="scan-container">
+    <a href="scan.html" class="self-start text-blue-400 hover:text-blue-200 mb-4">&larr; Back to Meal Scan</a>
+    <h1 class="text-3xl font-bold text-center tracking-wide">Scan a Drink Brand</h1>
+
+    <div id="scanForm" class="scan-card">
+      <h2>Upload or Scan Your Drink</h2>
+
+      <input type="file" accept="image/*" id="uploadInput" style="display: none;" />
+
+      <button class="scan-btn" id="mainScanButton">📷 Tap to Scan / Upload</button>
+
+      <img id="previewImage" class="upload-preview" />
+    </div>
+
+    <div class="loading-box" id="loadingBox">
+      <span>Analyzing drink… Please wait</span>
+    </div>
+    
+    <div id="resultsCard" class="hidden">
+        </div>
+  </div>
+
+  <script>
+    const BACKEND_URL = "https://safebite-backend-471218709027.us-central1.run.app";
+    // ⭐ API ENDPOINT: Set to the new drink brand scanner route
+    const API_ENDPOINT = `${BACKEND_URL}/api/scan-brand`; 
+    
+    const uploadInput = document.getElementById('uploadInput');
+    const mainScanButton = document.getElementById('mainScanButton');
+    const previewImage = document.getElementById('previewImage');
+    const loadingBox = document.getElementById('loadingBox');
+    const resultsCard = document.getElementById('resultsCard');
+    const scanForm = document.getElementById('scanForm');
+    
+    let currentImageFile = null;
+    let profileId = null; 
+
+    // --- Helper Function ---
+    const resetScan = () => {
+        currentImageFile = null;
+        uploadInput.value = '';
+        previewImage.src = '';
+        previewImage.style.display = 'none';
+        loadingBox.style.display = 'none';
+        resultsCard.classList.add('hidden');
+        mainScanButton.disabled = false;
+        mainScanButton.textContent = '📷 Tap to Scan / Upload';
+        scanForm.style.display = 'block';
+        loadingBox.style.backgroundColor = 'rgba(0, 255, 140, 0.1)'; // Reset error background
+        loadingBox.textContent = 'Analyzing drink… Please wait'; // Reset loading text
+    }
+
+    // --- Core Result Rendering (Matched to Brand Scan Backend Contract) ---
+    function renderBrandResults(result) {
+        scanForm.style.display = 'none'; // Hide form after scan
+        resultsCard.classList.remove("hidden");
+        
+        const aiResult = result.aiResult;
+        // Check for general error status or specific AI result error field
+        const isError = result.status?.includes('failed') || aiResult?.error;
+        
+        let statusBg = isError ? 'bg-red-600' : 'bg-green-600';
+        let statusText = isError ? 'AI Analysis Failed (Jaza Tena)' : 'DRINK ANALYZED (Imekamilika)';
+        let statusIcon = isError ? '❌' : '🔎';
+        
+        const listItems = (title, items) => items?.length > 0 ? `
+            <h4 class="text-lg font-bold mt-4 mb-2 text-blue-300">${title}:</h4>
+            <ul class="space-y-1 text-gray-300 list-disc pl-5">
+                ${items.map(item => `<li>${item}</li>`).join('')}
+            </ul>` : '';
+
+        resultsCard.innerHTML = `
+            <div class="text-white p-6 rounded-t-2xl text-center font-bold text-2xl ${statusBg}">
+                ${statusIcon} ${statusText}
+            </div>
+            
+            <div class="p-6 space-y-6">
+                ${isError ? `
+                    <div class="p-4 bg-red-800 rounded-xl text-red-100">
+                        <p class="font-bold">Error Details:</p>
+                        <p class="text-sm">${aiResult?.message || 'Could not process the image or connect to the AI service.'}</p>
+                    </div>
+                ` : `
+                    <div class="bg-gray-700 p-5 rounded-xl shadow-lg text-center">
+                        <h3 class="text-2xl font-extrabold mb-1 text-green-400">${aiResult.brandName || 'Unknown Brand'}</h3>
+                        <p class="text-xl font-semibold text-gray-300">${aiResult.productType || 'Unspecified Drink'}</p>
+                        <div class="mt-4 p-3 bg-gray-600 rounded-lg">
+                            <span class="text-sm font-bold text-yellow-300">Confidence Score: ${aiResult.confidenceScore || 'N/A'} / 100</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-700 p-5 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-semibold text-white mb-3">💬 Localized Advice (Ushauri Wa Kienyeji)</h3>
+                        <div class="p-3 bg-gray-800 border-l-4 border-blue-400 italic text-gray-300 rounded-md">
+                            ${aiResult.localizedAdvice || 'No specific advice available.'}
+                        </div>
+                    </div>
+                    
+                    ${aiResult.promotionalNote ? `
+                        <div class="bg-gray-700 p-5 rounded-xl shadow-lg border-2 border-yellow-500">
+                            <h3 class="text-xl font-semibold text-yellow-400 mb-3">✨ Promotional Note</h3>
+                            <p class="text-gray-300">${aiResult.promotionalNote}</p>
+                        </div>
+                    ` : ''}
+
+                    <div class="bg-gray-700 p-5 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-semibold text-white mb-3">📋 Product Details</h3>
+                        ${listItems('Key Ingredients (Viungo Muhimu)', aiResult.keyIngredients || [])}
+                        ${listItems('Warnings (Maonyo)', aiResult.warnings || [])}
+                        ${aiResult.expiryDate ? `<p class="mt-4 font-bold text-red-400">Expiry Date: ${aiResult.expiryDate}</p>` : ''}
+                        ${aiResult.manufacturer ? `<p class="mt-4 font-semibold text-gray-400">Manufacturer: ${aiResult.manufacturer}</p>` : ''}
+                    </div>
+                `}
+
+                <button onclick="resetScan()" 
+                        class="w-full mt-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-xl text-white font-semibold transition">
+                    Scan Another Drink
+                </button>
+            </div>
+        `;
+    }
+
+    // --- Core Scan Logic ---
+    const scanImage = async () => {
+        if (!currentImageFile) {
+            alert('Please select an image first.');
+            return;
+        }
+        if (!profileId) {
+            alert('User profile not loaded. Please return to the Meal Scan page to save your profile first.');
+            return;
+        }
+        
+        resultsCard.classList.add('hidden');
+        loadingBox.style.display = 'block';
+        mainScanButton.disabled = true;
+        mainScanButton.textContent = 'Analyzing...';
+
+        const formData = new FormData();
+        formData.append('image', currentImageFile);
+        formData.append('userId', profileId); // ⭐ PASSING THE LOADED PROFILE ID TO THE BACKEND
+
+        try {
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok || result.error || result.aiResult?.error) {
+                // If the response is not 200 OK or contains an error flag
+                throw new Error(result.message || JSON.stringify(result));
+            }
+            
+            renderBrandResults(result);
+
+        } catch (error) {
+            loadingBox.textContent = `Error: ${error.message}. Try another image.`;
+            loadingBox.style.backgroundColor = 'rgba(255, 0, 0, 0.2)';
+            console.error('Scan Error:', error);
+        } finally {
+            // Note: loadingBox is hidden inside renderBrandResults in case of success
+            if (!resultsCard.classList.contains('hidden')) {
+                 loadingBox.style.display = 'none';
+            }
+        }
+    };
+    
+    // --- Event Listeners and Init ---
+
+    mainScanButton.addEventListener('click', () => {
+        if (!currentImageFile) {
+            uploadInput.click();
+        } else {
+            scanImage(); // If image is already selected, start scanning
+        }
+    });
+
+    uploadInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        currentImageFile = file;
+        previewImage.src = URL.createObjectURL(file);
+        previewImage.style.display = 'block';
+        
+        // Update button to prompt scan
+        mainScanButton.disabled = false;
+        mainScanButton.textContent = '✅ Start Analysis'; 
+    });
+    
+    // ⭐ CRITICAL: Initialize function to load the Profile ID from localStorage
+    (function initializeApp() {
+        const savedId = localStorage.getItem('safebiteProfileId');
+
+        if (savedId) {
+            profileId = savedId;
+            console.log("Loaded User Profile ID:", profileId);
+        } else {
+            // If no ID is found, warn the user and keep profileId null.
+            console.warn("No profile ID found in localStorage. User must save a profile on the Meal Scan page first.");
+        }
+        resetScan();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,386 @@
+/* -------------------- Updated CSS -------------------- */
+
+/* Futuristic Scan Page Styles */
+body {
+  font-family: 'Roboto', sans-serif;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  text-align: center;
+  padding: 2rem 1rem;
+  background-color: rgba(255,255,255,0.2);
+}
+
+.scan-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 90vh;
+  background-color: #0b0c1b;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-card, .results-card {
+  background: rgba(0,0,0,0.6);
+  border: 2px solid #0ff;
+  border-radius: 15px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 900px;
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  box-shadow: 0 0 20px #0ff;
+  transition: all 0.5s ease;
+}
+
+.upload-card h2 {
+  text-align: center;
+  margin-bottom: 1rem;
+  color: #0ff;
+}
+
+.upload-card button {
+  margin-top: 1rem;
+  background-color: #0ff;
+  color: #000;
+  border: none;
+  padding: 0.7rem 1.5rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.upload-card button:hover {
+  background-color: #00f5ff;
+}
+
+.safe-section, .caution-section {
+  flex: 1;
+  text-align: center;
+  padding: 1rem;
+  border-radius: 10px;
+}
+
+.circle-glow {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: #0f0;
+  box-shadow: 0 0 20px #0f0, 0 0 40px #0f0 inset;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.triangle-glow {
+  font-size: 4rem;
+  color: #ff0;
+  text-shadow: 0 0 20px #ff0, 0 0 40px #ff0 inset;
+  margin-bottom: 1rem;
+}
+
+.confidence {
+  font-family: 'Roboto Mono', monospace;
+  font-weight: bold;
+  margin: 0.5rem 0;
+}
+
+.desc {
+  font-size: 0.9rem;
+}
+
+.scan-container::before {
+  content: '';
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  background: repeating-linear-gradient(45deg, rgba(0,255,255,0.05) 0 2px, transparent 2px 10px);
+  animation: moveLines 10s linear infinite;
+  top: -50%;
+  left: -50%;
+  z-index: 0;
+}
+
+@keyframes moveLines {
+  0% { transform: translate(0,0); }
+  100% { transform: translate(-50%,50%); }
+}
+
+/* -------------------- Original Navbar, Hero, Features, Footer Styles -------------------- */
+
+/* General */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 3rem;
+  background-color: #E8F5E9;
+}
+
+.navbar .logo {
+  display: flex;
+  align-items: center;
+}
+
+.navbar .logo img {
+  width: 50px;
+  margin-right: 0.5rem;
+}
+
+.navbar nav a {
+  margin: 0 1rem;
+  font-weight: 500;
+}
+
+.navbar .cta-btn {
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  padding: 0.7rem 1.5rem;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.navbar .cta-btn:hover {
+  background-color: #b71c1c;
+}
+
+/* Hero Section */
+.hero {
+  position: relative;
+  background-image: url('assets/hero-placeholder.jpg');
+  background-size: cover;
+  background-position: center;
+  height: 90vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: white;
+}
+
+.hero-overlay {
+  background: rgba(0,0,0,0.4);
+  padding: 2rem;
+  border-radius: 15px;
+}
+
+.hero h1 {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.hero h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.hero-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.hero-btn {
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  border-radius: 30px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.hero-btn.secondary-btn {
+  background-color: #fbc02d;
+  color: #333;
+}
+
+.hero-btn.primary-btn {
+  background-color: #d32f2f;
+  color: white;
+}
+
+.hero-btn:hover {
+  opacity: 0.85;
+}
+
+/* Features Section */
+.features {
+  padding: 4rem 2rem;
+  background-color: #f4f6f8;
+  text-align: center;
+}
+
+.features h2 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #212121;
+}
+
+.divider {
+  width: 60px;
+  height: 4px;
+  background-color: #D32F2F;
+  border-radius: 2px;
+  margin: 0 auto 3rem auto;
+}
+
+/* Cards Container */
+.feature-cards {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+/* Individual Card */
+.card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+  padding: 30px;
+  width: 250px;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+/* Card Icon */
+.card .material-icons {
+  font-size: 3.5rem;
+  color: #D32F2F;
+  margin-bottom: 1rem;
+}
+
+/* Card Heading */
+.card h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #388E3C;
+  margin-bottom: 1rem;
+}
+
+/* Card Description */
+.card p {
+  font-size: 1rem;
+  color: #666666;
+}
+
+/* Footer */
+.footer {
+  background-color: #2e7d32;
+  color: white;
+  text-align: center;
+  padding: 1.5rem;
+}
+/* Container */
+.profile-card-container {
+  background: #101820;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0,0,0,0.4);
+  margin-bottom: 20px;
+}
+
+/* HEADER */
+.profile-header {
+  background: linear-gradient(135deg, #1f8fff, #00e696);
+  padding: 20px;
+  text-align: center;
+  color: #fff;
+}
+
+.profile-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.profile-header p {
+  margin-top: 5px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* BODY */
+.profile-body {
+  padding: 20px;
+}
+
+/* LABELS */
+.form-group label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 6px;
+  color: #ffaa4f;
+  font-size: 14px;
+  letter-spacing: .3px;
+}
+
+/* ICON NEXT TO LABEL */
+.icon {
+  margin-right: 6px;
+}
+
+/* INPUTS */
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 2px solid #1f8fff;
+  background: #0d141c;
+  color: #fff;
+  outline: none;
+  margin-bottom: 15px;
+  transition: 0.3s ease;
+}
+
+.form-group input::placeholder {
+  color: #6a7a8a;
+}
+
+.form-group input:focus {
+  border-color: #00e696;
+  box-shadow: 0 0 8px rgba(0, 230, 150, 0.5);
+}
+
+/* SAVE BUTTON */
+.save-btn {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #00e676, #1affb5);
+  color: #000;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 12px rgba(0,255,160,0.6);
+}

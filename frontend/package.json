@@ -1,0 +1,16 @@
+{
+  "name": "safebite",
+  "version": "1.0.0",
+  "description": "SafeBite Africa - Food safety scanner prototype",
+  "main": "index.js",
+  "scripts": {
+    "dev": "lite-server"
+  },
+  "keywords": ["SafeBite", "FoodSafety", "AI", "Prototype"],
+  "author": "Your Name",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "lite-server": "^2.6.1"
+  }
+}
