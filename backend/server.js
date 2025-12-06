@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 
+
 // Enable CORS (important if your frontend is calling this backend)
 app.use(cors());
 

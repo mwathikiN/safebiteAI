@@ -31,6 +31,9 @@ router.post('/scan-brand', upload.single('image'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: true, message: 'No image uploaded' });
 
     localFilePath = req.file.path;
+    // 💡 NEW LINE: Extract the correct MIME type from the file object
+    const fileMimeType = req.file.mimetype; 
+    
     const bucket = admin.storage().bucket();
     const fileName = `scans/${userId}/${Date.now()}_${req.file.originalname}`;
 
@@ -55,7 +58,8 @@ router.post('/scan-brand', upload.single('image'), async (req, res) => {
     // ---------------- Call Vertex AI to analyze the drink ----------------
     let aiResult;
     try {
-      aiResult = await analyzeDrinkWithVertex(localFilePath);
+      // 🎯 MODIFIED LINE: Pass the fileMimeType to the analysis function
+      aiResult = await analyzeDrinkWithVertex(localFilePath, fileMimeType); 
 
       // Ensure all fields are always returned for frontend consistency
       aiResult = {
