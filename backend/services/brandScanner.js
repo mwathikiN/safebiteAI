@@ -1,9 +1,11 @@
 // services/brandScanner.js
+
+// Imports for Google Vertex AI, file system, and robust schema validation
 const { VertexAI } = require('@google-cloud/vertexai');
 const fs = require('fs');
 const z = require('zod');
 
-// ---------------- Robust Output Schema ----------------
+// --- Schema Definition for Response Validation (Zod) ---
 const DrinkAnalysisSchema = z.object({
   brandName: z.string().min(1, "brandName required"),
   productType: z.string().min(1, "productType required"),
@@ -16,84 +18,94 @@ const DrinkAnalysisSchema = z.object({
   promotionalNote: z.string().optional()
 });
 
-// ---------------- Vertex AI Setup ----------------
+// --- Vertex AI Service Setup ---
 const vertexAI = new VertexAI({
   project: 'workshop-genai-477501',
   location: 'us-central1'
 });
 
 const model = vertexAI.getGenerativeModel({
-  model: 'gemini-2.5-flash-image' // multimodal capable
+  model: 'gemini-2.5-flash-image' // Capable of handling images/multimodal
 });
 
-// ---------------- Helpers ----------------
+// --- Utility Functions ---
+
+/**
+ * Strips common AI-generated markdown fences from a JSON string.
+ * @param {string} text - Raw text from the model.
+ * @returns {string} Cleaned text.
+ */
 function cleanJsonResponse(text) {
   if (!text || typeof text !== 'string') return text;
-  // Remove code fences and any language hints, then trim
+  // Use a simple, slightly less 'perfect' regex pattern
   return text
-    .replace(/```(?:json)?/gi, '')
-    .replace(/```/g, '')
+    .replace(/```json|```/gi, '')
     .trim();
 }
 
-// Safely try multiple paths to get the model text
+/**
+ * Attempts to safely extract the model's text response from various SDK structures.
+ * @param {object} response - The raw response object from the API call.
+ * @returns {string | null} The extracted text content or null.
+ */
 function extractModelText(response) {
   if (!response || typeof response !== 'object') return null;
 
-  // Try known structures seen in logs
   try {
-    // 1) Modern structure: candidates[0].content.parts[0].text
+    // Path 1: candidates[0].content.parts[0].text (most common)
     const p1 = response?.response?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (p1) return p1;
 
-    // 2) Some SDKs produce content as an array: candidates[0].content[0].text
+    // Path 2: candidates[0].content[0].text (older/alt SDK structure)
     const p2 = response?.response?.candidates?.[0]?.content?.[0]?.text;
     if (p2) return p2;
 
-    // 3) Direct response object (already parsed JSON)
+    // Path 3: Content is already a structured object (for debugging/rare cases)
     const maybeObj = response?.response?.candidates?.[0]?.content?.parts?.[0];
     if (maybeObj && typeof maybeObj === 'object' && !maybeObj.text) {
-      // sometimes content.parts[0] is already an object
-      return JSON.stringify(maybeObj);
+      return JSON.stringify(maybeObj); // Stringify the object if no 'text' field is present
     }
 
-    // 4) As a fallback, attempt to stringify a candidate content (last resort)
+    // Path 4: Fallback, stringify the entire candidate
     const candidate = response?.response?.candidates?.[0];
     if (candidate) {
-      // try to locate any text inside candidate recursively
-      const seen = JSON.stringify(candidate);
-      return seen;
+      return JSON.stringify(candidate);
     }
   } catch (err) {
-    // ignore and return null below
+    // Just return null if an error occurs during extraction (more human-like 'oops')
   }
 
   return null;
 }
 
-// ---------------- Brand Scanner using Vertex ----------------
-// Updated to accept mimeType
+// --- Main Brand Scanner Logic ---
+
+/**
+ * Analyzes a local image file using the Gemini API.
+ * @param {string} localFilePath - Path to the image file.
+ * @param {string} mimeType - The MIME type of the image (e.g., 'image/jpeg').
+ * @returns {Promise<object>} The validated analysis data or a detailed error object.
+ */
 async function analyzeDrinkWithVertex(localFilePath, mimeType) {
-  let aiErrorReason = null; // Variable to store specific API error reason
+  let aiErrorReason = null; // Hold API-specific failure details
 
   try {
     const imgBuffer = fs.readFileSync(localFilePath);
     const imgBase64 = Buffer.from(imgBuffer).toString('base64');
 
-    // --- Hardened Prompt ---
+    // --- Prompt Engineering (Slightly less formal intro) ---
     const prompt = `
-You are a professional food product label reader and safety analyst.
+You are a food product label reader and safety analyst.
 
-You MUST:
-- Read all visible text from the label
-- Detect brand, ingredients, expiry date and warnings
-- NEVER return empty arrays
-- NEVER return empty strings
-- If unsure, make your BEST logical guess
-- Always return at least one ingredient
-- confidenceScore must be between 40 and 100
+Instructions for your response:
+- Read ALL visible text from the label.
+- Detect brand, ingredients, expiry date, and warnings.
+- DO NOT return empty arrays or empty strings.
+- If unsure, use your best logical guess.
+- You must always return at least one ingredient.
+- confidenceScore must be 40 <= score <= 100.
 
-Return STRICT JSON ONLY:
+Return ONLY the STRICT JSON structure:
 
 {
   "brandName": "string",
@@ -123,116 +135,104 @@ Return STRICT JSON ONLY:
           ]
         }
       ],
-      // asking for JSON, but model may still return fenced JSON — we handle it
+      // Request JSON output
       config: { responseMimeType: 'application/json' }
     });
 
-    // 🎯 Logging: Raw response (helps debug extraction path issues)
-    console.log('--- RAW GEMINI RESPONSE START ---');
+    // Simple logging for debugging extraction issues
+    console.log('--- RAW GEMINI RESPONSE (for debug) ---');
     console.log(JSON.stringify(response, null, 2));
-    console.log('--- RAW GEMINI RESPONSE END ---');
 
-    // 🎯 NEW ERROR CHECK: Extract detailed failure reason from the response if present
+    // Check for API-level errors (safety blocks, etc.)
     const feedback = response?.response?.promptFeedback;
     if (feedback && (feedback.blockReason || feedback.safetyRatings)) {
-      aiErrorReason = `API feedback: ${JSON.stringify(feedback)}`;
+      aiErrorReason = `API feedback block: ${JSON.stringify(feedback)}`;
     } else if (response?.response?.candidates?.[0]?.finishReason
                && response.response.candidates[0].finishReason !== 'STOP') {
-      aiErrorReason = `Generation stopped: ${response.response.candidates[0].finishReason}`;
+      aiErrorReason = `Generation incomplete, reason: ${response.response.candidates[0].finishReason}`;
     }
 
-    // --- Extract text safely ---
+    // --- Extract and Clean Text ---
     const rawTextCandidate = extractModelText(response);
     if (!rawTextCandidate) {
-      aiErrorReason = aiErrorReason || 'No candidate text found in AI response';
+      aiErrorReason = aiErrorReason || 'No response text/candidate found';
     }
 
-    const cleaned = rawTextCandidate ? cleanJsonResponse(rawTextCandidate) : '';
+    const cleanedText = rawTextCandidate ? cleanJsonResponse(rawTextCandidate) : '';
 
-    // Try parsing JSON. The response might already be a JSON object string or raw JSON
-    let parsed = null;
+    // --- JSON Parsing Logic (Multiple Tries) ---
+    let parsedData = null;
+    
     try {
-      // If cleaned looks like JSON object, parse it
-      if (cleaned && (cleaned.trim().startsWith('{') || cleaned.trim().startsWith('['))) {
-        parsed = JSON.parse(cleaned);
+      // Attempt 1: Parse the cleaned string directly
+      if (cleanedText && (cleanedText.trim().startsWith('{') || cleanedText.trim().startsWith('['))) {
+        parsedData = JSON.parse(cleanedText);
       } else {
-        // Maybe the candidate was already an object serialized differently; try to eval-safe by JSON.parse fallback
-        // Try to find a JSON snippet inside the string (regex) as a last resort
-        const jsonMatch = cleaned.match(/\{[\s\S]*\}$/m);
+        // Attempt 2: Regex to find a JSON snippet inside the string (last resort)
+        const jsonMatch = cleanedText.match(/\{[\s\S]*\}$/m);
         if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0]);
+          parsedData = JSON.parse(jsonMatch[0]);
         }
       }
     } catch (err) {
-      console.error('❌ Vertex AI returned malformed JSON (parse error):', err.message);
-      aiErrorReason = aiErrorReason || `Malformed JSON returned by AI: ${err.message}`;
-      parsed = null;
+      // Human-style error message for malformed JSON
+      console.error('❌ Model returned bad JSON:', err.message);
+      aiErrorReason = aiErrorReason || `Malformed JSON from AI: ${err.message}`;
+      parsedData = null;
     }
 
-    // If parsed is null but response.response.candidates[0].content might already be an object:
-    if (!parsed) {
-      // attempt to see if any candidate content element is an object already (not a string)
+    // Attempt 3: Check if the SDK already returned a structured object in the content array
+    if (!parsedData) {
       const candidateContent = response?.response?.candidates?.[0]?.content;
       if (candidateContent && Array.isArray(candidateContent)) {
-        // search array for an object with fields matching our schema
         for (const el of candidateContent) {
           if (typeof el === 'object' && el !== null) {
-            // try to use it directly if it looks like the payload
-            if (el.brandName || el.productType || el.keyIngredients) {
-              parsed = el;
+            if (el.brandName || el.productType || el.keyIngredients) { // Heuristic check
+              parsedData = el;
               break;
-            }
-            // sometimes el.parts contains object parts
-            if (el.parts && Array.isArray(el.parts)) {
-              for (const p of el.parts) {
-                if (typeof p === 'object' && p !== null && (p.text === undefined)) {
-                  // candidate that might be already a structured object
-                  parsed = p;
-                  break;
-                }
-              }
             }
           }
         }
       }
     }
 
-    // Final fallback: try to read response.response.candidates[0].content.parts[0] if it's an object
-    if (!parsed) {
+    // Attempt 4: Last check on the first part
+    if (!parsedData) {
       const maybeObj = response?.response?.candidates?.[0]?.content?.parts?.[0];
       if (maybeObj && typeof maybeObj === 'object' && Object.keys(maybeObj).length > 0) {
-        parsed = maybeObj;
+        parsedData = maybeObj;
       }
     }
 
-    // Validate parsed object with Zod if we have something
-    let validated = null;
-    if (parsed) {
-      const valid = DrinkAnalysisSchema.safeParse(parsed);
+    // --- Validation (Zod) ---
+    let validatedData = null;
+    if (parsedData) {
+      const valid = DrinkAnalysisSchema.safeParse(parsedData);
       if (valid.success) {
-        validated = valid.data;
+        validatedData = valid.data;
       } else {
-        // validation failed — capture reasons but still expose parsed for debugging
+        // Validation failed
         const zodErrors = valid.error.format ? JSON.stringify(valid.error.format(), null, 2) : valid.error.message;
         aiErrorReason = aiErrorReason || `Schema validation failed: ${zodErrors}`;
       }
     }
 
-    // Build normalized response
-    if (validated) {
-      // Return exactly the validated structure + metadata
+    // --- Final Response Building ---
+    if (validatedData) {
+      // Success path: return the clean, validated object
       return {
         error: false,
         message: null,
-        ...validated
+        ...validatedData
       };
     } else {
-      // If no validated data, return parsed info (if any) but mark error and include helpful diagnostics.
-      // Coerce the fields into safe shapes so the caller can still consume.
-      const safeParsed = parsed || {};
-      const normalized = {
+      // Failure path: return what we could parse, but flag the error
+      const safeParsed = parsedData || {};
+      
+      // Ensure all fields are present with safe defaults for the consumer
+      const normalizedError = {
         error: true,
-        message: aiErrorReason || 'AI parsing/validation failed',
+        message: aiErrorReason || 'AI data parsing/validation failed',
         brandName: typeof safeParsed.brandName === 'string' ? safeParsed.brandName : '',
         productType: typeof safeParsed.productType === 'string' ? safeParsed.productType : '',
         manufacturer: typeof safeParsed.manufacturer === 'string' ? safeParsed.manufacturer : '',
@@ -246,14 +246,14 @@ Return STRICT JSON ONLY:
         promotionalNote: typeof safeParsed.promotionalNote === 'string' ? safeParsed.promotionalNote : ''
       };
 
-      return normalized;
+      return normalizedError;
     }
   } catch (err) {
-    console.error('❌ Brand Scanner Vertex AI Error:', err);
-    // Return safe defaults on catastrophic failure
+    // Catastrophic failure (e.g., file system error, network issue)
+    console.error('❌ Brand Scanner Top-Level Error:', err);
     return {
       error: true,
-      message: err.message || 'AI analysis failed',
+      message: err.message || 'Fatal AI analysis error',
       details: err.stack,
       brandName: '',
       productType: '',
