@@ -58,8 +58,7 @@ Project Proposal → docs/proposal.pdf
 Project Slides → docs/slides.pdf
 
 🎥 Demo Video
-
-https://drive.google.com/file/d/1gnQc1AuMlMtpcX-TTW518inclBd5KEcr/view?usp=sharing
+https://docs.google.com/videos/d/1B_8R-pqphO5pkX21SU_3YYJMId-OZOa8N5rlqeN0Tuw/edit?usp=drive_link
 
 🚀 Running Backend Locally
 cd backend
